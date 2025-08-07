@@ -94,6 +94,12 @@
                 <div class="text-center mb-8">
                     <h2 class="text-3xl font-bold text-slate-800">2025年 化学分野の羅針盤</h2>
                     <p class="mt-2 text-slate-600 max-w-3xl mx-auto">化学分野は持続可能性、AI、新材料の波に乗り、大きな変革期を迎えています。このダッシュボードは、特許翻訳の専門家が知るべき最重要トレンドを視覚的に探求するためのツールです。</p>
+                    <div class="mt-4 flex justify-center">
+                        <button id="play-audio-overview" class="bg-teal-500 text-white px-4 py-2 rounded-md font-semibold hover:bg-teal-600 transition flex items-center space-x-2">
+                            <span>音声解説を再生</span>
+                            <span id="audio-icon">▶️</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -137,6 +143,14 @@
                             <span class="bg-rose-100 text-rose-800 text-sm font-medium px-3 py-1 rounded-full">Graph Neural Networks</span>
                             <span class="bg-teal-100 text-teal-800 text-sm font-medium px-3 py-1 rounded-full">Biocatalysis</span>
                             <span class="bg-amber-100 text-amber-800 text-sm font-medium px-3 py-1 rounded-full">PFAS Remediation</span>
+                        </div>
+                        <div class="flex flex-col mt-6 bg-slate-100 p-4 rounded-lg">
+                            <label for="keyword-input" class="text-sm font-medium mb-2">キーワードを入力して詳細を生成 ✨</label>
+                            <div class="flex space-x-2">
+                                <input type="text" id="keyword-input" placeholder="例: 固体電池" class="flex-grow p-2 border rounded-md text-sm">
+                                <button id="generate-keyword-info" class="bg-indigo-500 text-white px-4 py-2 rounded-md text-sm font-semibold hover:bg-indigo-600 transition">生成</button>
+                            </div>
+                            <div id="keyword-output" class="mt-4 p-3 bg-white rounded-md text-sm min-h-[100px] text-slate-700">生成された情報がここに表示されます。</div>
                         </div>
                     </div>
                 </div>
@@ -344,6 +358,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const pharmaTabButtons = document.querySelectorAll('.pharma-tab-btn');
     const pharmaTabContents = document.querySelectorAll('.pharma-tab-content');
     const ipOfficeSelector = document.getElementById('ip-office-selector');
+    const generateKeywordInfoBtn = document.getElementById('generate-keyword-info');
+    const keywordInput = document.getElementById('keyword-input');
+    const keywordOutput = document.getElementById('keyword-output');
+    const audioBtn = document.getElementById('play-audio-overview');
+    const audioIcon = document.getElementById('audio-icon');
+
+    // Assumes an audio file named `overview_audio.mp3` has been uploaded to the repository
+    const audio = new Audio('overview_audio.mp3');
+
+    audio.addEventListener('play', () => {
+        audioIcon.textContent = '⏸️';
+    });
+
+    audio.addEventListener('pause', () => {
+        audioIcon.textContent = '▶️';
+    });
+
+    audio.addEventListener('ended', () => {
+        audioIcon.textContent = '▶️';
+    });
+
+    audioBtn.addEventListener('click', () => {
+        if (audio.paused) {
+            audio.play();
+        } else {
+            audio.pause();
+        }
+    });
 
     const materialData = {
         wood: {
@@ -566,6 +608,61 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     updateMaterialDisplay('wood');
+    
+    // Gemini API integration for keyword info generation
+    generateKeywordInfoBtn.addEventListener('click', async () => {
+        const prompt = `以下のキーワードについて、化学分野の特許翻訳者向けに、簡潔かつ専門的に解説してください。
+キーワード: ${keywordInput.value}
+特に、特許出願の観点から重要なポイントや、関連する技術トレンドについて触れてください。回答はMarkdown形式で、読みやすく箇条書きを含めてください。`;
+        
+        keywordOutput.innerHTML = '<div class="text-center text-slate-500">生成中...</div>';
+
+        const apiKey = "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        
+        const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+        const payload = { contents: chatHistory };
+
+        let backoff = 1000;
+        let retries = 0;
+        const maxRetries = 5;
+
+        async function fetchWithExponentialBackoff(url, options) {
+            try {
+                const response = await fetch(url, options);
+                if (response.status === 429 && retries < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, backoff));
+                    backoff *= 2;
+                    retries++;
+                    return fetchWithExponentialBackoff(url, options);
+                }
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            } catch (error) {
+                console.error("Fetch failed:", error);
+                keywordOutput.innerHTML = `<p class="text-red-500">エラーが発生しました: ${error.message}</p>`;
+                return null;
+            }
+        }
+
+        const result = await fetchWithExponentialBackoff(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (result && result.candidates && result.candidates.length > 0 &&
+            result.candidates[0].content && result.candidates[0].content.parts &&
+            result.candidates[0].content.parts.length > 0) {
+            const text = result.candidates[0].content.parts[0].text;
+            keywordOutput.innerHTML = text.replace(/\n/g, '<br>');
+        } else {
+            keywordOutput.innerHTML = '<p class="text-red-500">情報が見つかりませんでした。</p>';
+        }
+    });
+
 });
 </script>
 
