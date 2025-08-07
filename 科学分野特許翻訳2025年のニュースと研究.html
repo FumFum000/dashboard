@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>化学特許トレンド2025 | インタラクティブ・ダッシュボード</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: A single-page application with a main navigation bar to switch between thematic sections (Overview, Green Chemistry, Advanced Materials, Pharma, AI, IP Trends). The default 'Overview' section acts as a dashboard, providing high-level insights with key trend cards and an interactive chart to draw the user in. Detailed sections use a mix of text, custom HTML/CSS diagrams, and interactive elements (like toggles and spotlights) to present complex information in a digestible, non-linear format. This structure is chosen over a linear report layout to empower users to explore topics based on their interest, facilitating quicker understanding and comparison of different trends. -->
+    <!-- Visualization & Content Choices: 
+        - EPO Patent Growth Chart (Bar Chart, Chart.js): Goal: Compare. Justification: To visually highlight the dramatic divergence in patenting activity between high-growth energy tech and declining pharma, a key insight from the report.
+        - IP Trends by Office (Bar Chart, Chart.js): Goal: Compare/Organize. Justification: To transform the static Table 3 into an interactive tool, allowing users to actively query data for different patent offices, enhancing engagement.
+        - Process/Mechanism Diagrams (HTML/CSS): Goal: Inform/Compare. Justification: To simplify complex concepts like cross-coupling reactions and PROTAC/ADC mechanisms into easily understandable visual flows, which is more effective than text alone.
+        - Material Spotlight (Interactive Cards, JS): Goal: Inform. Justification: To allow users to focus on one material at a time, preventing information overload and making key properties and applications more memorable.
+        - All choices adhere to the NO SVG/Mermaid constraint, using either Canvas via Chart.js or structured HTML/CSS for all visuals. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .nav-btn {
+            transition: all 0.3s ease;
+        }
+        .nav-btn.active {
+            background-color: #0d9488;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card-hover {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="min-h-screen bg-slate-50">
+        <header class="bg-white shadow-sm sticky top-0 z-50">
+            <div class="container mx-auto px-4 py-4">
+                <div class="flex flex-col sm:flex-row justify-between items-center">
+                    <h1 class="text-2xl font-bold text-teal-700">化学特許トレンド2025</h1>
+                    <p class="text-sm text-slate-600 mt-2 sm:mt-0">翻訳者のためのインタラクティブ・ダッシュボード</p>
+                </div>
+                <nav class="mt-4 overflow-x-auto pb-2">
+                    <ul class="flex space-x-2 sm:space-x-4 text-sm font-medium justify-center">
+                        <li><button data-target="overview" class="nav-btn active whitespace-nowrap px-3 py-2 rounded-md bg-slate-200 text-slate-700 hover:bg-teal-600 hover:text-white">概観</button></li>
+                        <li><button data-target="green-chem" class="nav-btn whitespace-nowrap px-3 py-2 rounded-md bg-slate-200 text-slate-700 hover:bg-teal-600 hover:text-white">グリーンケミストリー</button></li>
+                        <li><button data-target="materials" class="nav-btn whitespace-nowrap px-3 py-2 rounded-md bg-slate-200 text-slate-700 hover:bg-teal-600 hover:text-white">先端材料</button></li>
+                        <li><button data-target="pharma" class="nav-btn whitespace-nowrap px-3 py-2 rounded-md bg-slate-200 text-slate-700 hover:bg-teal-600 hover:text-white">医薬品開発</button></li>
+                        <li><button data-target="ai-ml" class="nav-btn whitespace-nowrap px-3 py-2 rounded-md bg-slate-200 text-slate-700 hover:bg-teal-600 hover:text-white">AI/MLの影響</button></li>
+                        <li><button data-target="ip-trends" class="nav-btn whitespace-nowrap px-3 py-2 rounded-md bg-slate-200 text-slate-700 hover:bg-teal-600 hover:text-white">知財動向</button></li>
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <main class="container mx-auto p-4 sm:p-6 md:p-8">
+            
+            <section id="overview" class="content-section active">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-slate-800">2025年 化学分野の羅針盤</h2>
+                    <p class="mt-2 text-slate-600 max-w-3xl mx-auto">化学分野は持続可能性、AI、新材料の波に乗り、大きな変革期を迎えています。このダッシュボードは、特許翻訳の専門家が知るべき最重要トレンドを視覚的に探求するためのツールです。</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                    <div class="bg-white p-6 rounded-lg shadow-md card-hover">
+                        <h3 class="font-bold text-teal-700 text-lg">グリーンケミストリー</h3>
+                        <p class="text-sm mt-2 text-slate-600">環境負荷の低い合成法や化学リサイクルが主流に。持続可能性がイノベーションと競争優位性の源泉となっています。</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md card-hover">
+                        <h3 class="font-bold text-teal-700 text-lg">先端材料</h3>
+                        <p class="text-sm mt-2 text-slate-600">固体電池から透明木材まで、エネルギー、医療、建設分野で革命を起こす新材料が次々と登場しています。</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md card-hover">
+                        <h3 class="font-bold text-teal-700 text-lg">医薬品開発</h3>
+                        <p class="text-sm mt-2 text-slate-600">PROTACsやADCsなど新モダリティが創薬の常識を覆し、AIが開発速度を劇的に加速させています。</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md card-hover">
+                        <h3 class="font-bold text-teal-700 text-lg">AI/MLの統合</h3>
+                        <p class="text-sm mt-2 text-slate-600">分子設計から特許実務まで、AIは化学のあらゆるプロセスを再定義する中核技術となりつつあります。</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-xl font-bold text-center text-slate-800 mb-4">注目すべき特許動向：EPO出願成長率 (2024年)</h3>
+                        <p class="text-sm text-center text-slate-600 mb-4">欧州特許庁への出願動向は、技術革新のホットスポットを明確に示しています。特に、エネルギー転換への投資が特許活動に直接反映されています。</p>
+                        <div class="chart-container">
+                            <canvas id="epoChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-xl font-bold text-center text-slate-800 mb-4">2025年 特許関連ホットキーワード</h3>
+                        <p class="text-sm text-center text-slate-600 mb-4">これらのキーワードは、今後の特許出願で頻出する可能性が高い重要概念です。</p>
+                        <div class="flex flex-wrap justify-center items-center gap-3 mt-6">
+                            <span class="bg-teal-100 text-teal-800 text-sm font-medium px-3 py-1 rounded-full">Green Chemistry</span>
+                            <span class="bg-sky-100 text-sky-800 text-sm font-medium px-3 py-1 rounded-full">Solid-state Batteries</span>
+                            <span class="bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">PROTACs</span>
+                            <span class="bg-rose-100 text-rose-800 text-sm font-medium px-3 py-1 rounded-full">AI in Drug Discovery</span>
+                            <span class="bg-amber-100 text-amber-800 text-sm font-medium px-3 py-1 rounded-full">Circular Economy</span>
+                            <span class="bg-sky-100 text-sky-800 text-sm font-medium px-3 py-1 rounded-full">Transparent Wood</span>
+                            <span class="bg-indigo-100 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">ADCs</span>
+                            <span class="bg-rose-100 text-rose-800 text-sm font-medium px-3 py-1 rounded-full">Graph Neural Networks</span>
+                            <span class="bg-teal-100 text-teal-800 text-sm font-medium px-3 py-1 rounded-full">Biocatalysis</span>
+                            <span class="bg-amber-100 text-amber-800 text-sm font-medium px-3 py-1 rounded-full">PFAS Remediation</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="green-chem" class="content-section">
+                <h2 class="text-3xl font-bold text-slate-800 text-center mb-2">グリーンケミストリーと持続可能性</h2>
+                <p class="text-slate-600 text-center max-w-3xl mx-auto mb-8">化学産業は環境負荷低減と経済合理性を両立させるパラダイムシフトの最中にあります。新しい合成法、リサイクル技術、PFAS対策がその中核をなしています。</p>
+                
+                <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">革新的合成法：よりクリーンな化学へ</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-semibold text-teal-700">クロス結合反応の進化</h4>
+                            <p class="text-sm mt-2 text-slate-600">危険で高価な有機金属化合物を、安価で安全な<strong class="text-teal-600">ギ酸ナトリウム</strong>に置き換える新手法が登場。リガンド不要で、触媒はパラジウム(I)二量体、水が共溶媒として機能します。これにより、医薬品や農薬の製造がより安全、安価、かつ環境に優しくなります。</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-teal-700">バイオ触媒によるアミン合成</h4>
+                            <p class="text-sm mt-2 text-slate-600"><strong class="text-teal-600">水素化酵素</strong>を利用し、水素ガスから直接アミンを合成。重金属触媒を不要とし、コストを40%、CO2排出量を3分の1に削減。持続可能な医薬品製造への道を拓きます。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-xl font-bold text-slate-800 mb-4">化学リサイクルと循環経済</h3>
+                        <p class="text-sm text-slate-600">プラスチック廃棄物を元のモノマーに分解する<strong class="text-sky-600">化学リサイクル</strong>が、品質を損なわない無限リサイクルの鍵として注目されています。BASFのCcycled®やDowのMura Technologyとの提携は、循環経済への移行を加速させる具体的な動きです。特許は、製品ライフサイクル全体での環境負荷低減を強調する傾向にあります。</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-xl font-bold text-slate-800 mb-4">PFAS（有機フッ素化合物）対策</h3>
+                        <p class="text-sm text-slate-600">残留性の高いPFASの検出・修復技術が急務となっています。特に、化学物質を使わない<strong class="text-sky-600">電気化学的酸化</strong>や、AI/MLを活用したデータ駆動型のアプローチが新たな解決策として期待されています。関連特許は、低コスト、リアルタイム測定、高効率な分解プロセスに焦点を当てています。</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="materials" class="content-section">
+                <h2 class="text-3xl font-bold text-slate-800 text-center mb-2">先端材料科学の革新</h2>
+                <p class="text-slate-600 text-center max-w-3xl mx-auto mb-8">エネルギー貯蔵からスマート建材まで、材料科学のブレークスルーが未来のテクノロジーの基盤を築いています。性能向上と環境配慮の両立がキーワードです。</p>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-xl font-bold text-slate-800 mb-4">次世代エネルギー材料</h3>
+                        <p class="text-sm text-slate-600 mb-4">リチウムイオン電池の限界を超えるため、多様なアプローチが加速しています。安全性、エネルギー密度、寿命の向上が特許の焦点です。</p>
+                        <div class="space-y-4">
+                            <div class="p-4 border-l-4 border-sky-500 bg-sky-50">
+                                <h4 class="font-semibold text-sky-800">固体電池</h4>
+                                <p class="text-sm mt-1 text-sky-700">可燃性の液体電解質を固体に置き換え、安全性とエネルギー密度を飛躍的に向上。トヨタ、パナソニックなどが開発をリードしています。</p>
+                            </div>
+                            <div class="p-4 border-l-4 border-teal-500 bg-teal-50">
+                                <h4 class="font-semibold text-teal-800">ナトリウムイオン電池</h4>
+                                <p class="text-sm mt-1 text-teal-700">豊富で安価なナトリウムを利用。リチウムへの依存を減らす代替技術として期待されています。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-xl font-bold text-slate-800 mb-4">スマート材料スポットライト</h3>
+                        <p class="text-sm text-slate-600 mb-4">特定の機能を持つインテリジェントな材料が、新たな応用分野を開拓しています。下のボタンで詳細を表示します。</p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <button class="material-btn bg-teal-500 text-white px-3 py-1 rounded-md text-sm" data-material="wood">透明木材</button>
+                            <button class="material-btn bg-slate-500 text-white px-3 py-1 rounded-md text-sm" data-material="ceramics">超高温セラミックス</button>
+                            <button class="material-btn bg-slate-500 text-white px-3 py-1 rounded-md text-sm" data-material="sensors">ウェアラブルセンサー</button>
+                        </div>
+                        <div id="material-display" class="p-4 rounded-lg bg-slate-100 min-h-[150px]">
+                            <!-- JS will populate this -->
+                        </div>
+                    </div>
+                </div>
+                 <div class="mt-8 bg-white p-6 rounded-lg shadow-lg">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">ナノ材料の医療応用</h3>
+                    <p class="text-sm text-slate-600 mb-4">ナノテクノロジーは、診断と治療を統合する「セラノスティクス」を実現し、精密医療を新たなレベルへと引き上げます。</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                        <div class="p-4">
+                            <div class="text-4xl text-indigo-500">🎯</div>
+                            <h4 class="font-semibold mt-2">標的型ドラッグデリバリー</h4>
+                            <p class="text-xs mt-1">ナノ粒子が薬剤をがん細胞に直接届け、副作用を最小化します。</p>
+                        </div>
+                        <div class="p-4">
+                            <div class="text-4xl text-indigo-500">🩺</div>
+                            <h4 class="font-semibold mt-2">早期疾患検出</h4>
+                            <p class="text-xs mt-1">ナノセンサーがごく初期の疾患マーカーを検出し、早期介入を可能にします。</p>
+                        </div>
+                        <div class="p-4">
+                            <div class="text-4xl text-indigo-500">⚙️</div>
+                            <h4 class="font-semibold mt-2">スマートインプラント</h4>
+                            <p class="text-xs mt-1">体内で状態を監視し、必要に応じて薬剤を放出するインプラントです。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="pharma" class="content-section">
+                <h2 class="text-3xl font-bold text-slate-800 text-center mb-2">医薬品開発のブレークスルー</h2>
+                <p class="text-slate-600 text-center max-w-3xl mx-auto mb-8">新しい作用機序を持つ薬剤「モダリティ」とAIの活用が、これまで治療困難だった疾患に光を当てています。</p>
+                
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">新しい薬剤モダリティの登場</h3>
+                    <p class="text-sm text-slate-600 mb-6">創薬のパラダイムは「標的を阻害する」から「標的を分解・除去する」へと進化しています。</p>
+                    <div class="flex justify-center border-b mb-4">
+                        <button class="pharma-tab-btn active border-b-2 border-indigo-500 px-4 py-2 text-indigo-600 font-semibold" data-target="protacs">PROTACs</button>
+                        <button class="pharma-tab-btn px-4 py-2 text-slate-500 font-semibold" data-target="adcs">ADCs</button>
+                    </div>
+
+                    <div id="protacs-content" class="pharma-tab-content active">
+                        <h4 class="text-lg font-semibold text-indigo-700">PROTACs (タンパク質分解誘導剤)</h4>
+                        <p class="text-sm mt-2 text-slate-600">疾患の原因となるタンパク質を、細胞が持つ本来の分解システム（ユビキチン-プロテアソーム系）を利用して標的化し、破壊する技術です。これにより、従来は創薬標的とできなかったタンパク質も治療対象となります。</p>
+                        <div class="mt-4 p-4 bg-indigo-50 rounded-lg text-sm">
+                            <strong>作用機序:</strong> 標的タンパク質とユビキチンリガーゼを連結 → 標的タンパク質にユビキチンが付加 → プロテアソームが分解
+                        </div>
+                    </div>
+                    <div id="adcs-content" class="pharma-tab-content">
+                         <h4 class="text-lg font-semibold text-indigo-700">ADCs (抗体薬物複合体)</h4>
+                        <p class="text-sm mt-2 text-slate-600">抗体の高い標的特異性を利用して、強力な薬物（ペイロード）をがん細胞などの特定の細胞にのみ送達する技術です。正常な細胞への影響を抑えつつ、治療効果を最大化します。</p>
+                         <div class="mt-4 p-4 bg-indigo-50 rounded-lg text-sm">
+                            <strong>構成要素:</strong> 標的細胞を認識する「抗体」、治療効果を持つ「薬物」、両者をつなぐ「リンカー」
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="ai-ml" class="content-section">
+                <h2 class="text-3xl font-bold text-slate-800 text-center mb-2">AI/機械学習がもたらす変革</h2>
+                <p class="text-slate-600 text-center max-w-3xl mx-auto mb-8">AIは単なるツールではなく、研究開発のあり方を根本から変える触媒です。分子の表現方法から予測モデル、データ解析まで、その影響は全領域に及んでいます。</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-xl font-bold text-slate-800 mb-4">分子構造表現と予測モデルの進化</h3>
+                        <p class="text-sm text-slate-600">従来のSMILES形式の限界を超え、分子をグラフとして捉える<strong class="text-rose-600">Graph Neural Networks (GNNs)</strong> が主流になりつつあります。Graphormerのような高度なモデルは、分子の複雑な関係性を学習し、QSAR（定量的構造活性相関）や反応予測の精度を飛躍的に向上させています。</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-xl font-bold text-slate-800 mb-4">分析化学・材料科学への応用</h3>
+                        <p class="text-sm text-slate-600">AIは、実験データの解析と解釈を自動化・高度化します。例えば、ナノ粒子が体内で形成する<strong class="text-rose-600">タンパク質コロナ</strong>の研究では、AIがその複雑な組成を解析し、ナノ医薬品の安全性と有効性の評価を加速させています。</p>
+                    </div>
+                </div>
+                <div class="mt-8 bg-white p-6 rounded-lg shadow-lg">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">AIによる創薬プロセスの加速</h3>
+                    <p class="text-sm text-slate-600 mb-4">AIは創薬の各段階を効率化し、開発期間を5年から12-18ヶ月へ、コストを最大40%削減する可能性を秘めています。</p>
+                    <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0 md:space-x-4 text-center">
+                        <div class="flex-1">
+                            <div class="text-2xl">🎯</div>
+                            <p class="font-semibold text-sm">標的同定</p>
+                        </div>
+                        <div class="text-2xl text-slate-400 font-mono">&gt;&gt;</div>
+                        <div class="flex-1">
+                            <div class="text-2xl">🧬</div>
+                            <p class="font-semibold text-sm">分子設計</p>
+                        </div>
+                        <div class="text-2xl text-slate-400 font-mono">&gt;&gt;</div>
+                        <div class="flex-1">
+                            <div class="text-2xl">🧪</div>
+                            <p class="font-semibold text-sm">仮想スクリーニング</p>
+                        </div>
+                        <div class="text-2xl text-slate-400 font-mono">&gt;&gt;</div>
+                        <div class="flex-1">
+                            <div class="text-2xl">📈</div>
+                            <p class="font-semibold text-sm">臨床試験デザイン</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="ip-trends" class="content-section">
+                <h2 class="text-3xl font-bold text-slate-800 text-center mb-2">知的財産と特許動向</h2>
+                <p class="text-slate-600 text-center max-w-3xl mx-auto mb-8">技術革新は特許活動に直接反映されます。主要特許庁の動向から、どの分野が投資を集め、競争が激化しているかを読み解きます。</p>
+                
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">主要特許庁の動向比較</h3>
+                    <p class="text-sm text-slate-600 mb-4">下のボタンで特許庁を切り替えて、化学関連分野の出願動向を確認できます。</p>
+                    <div class="flex justify-center mb-4">
+                        <select id="ip-office-selector" class="p-2 border rounded-md bg-white shadow-sm focus:ring-2 focus:ring-amber-500">
+                            <option value="epo" selected>EPO (欧州特許庁)</option>
+                            <option value="wipo">WIPO (世界知的所有権機関)</option>
+                            <option value="uspto">USPTO (米国特許商標庁)</option>
+                        </select>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="ipChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="mt-8 bg-white p-6 rounded-lg shadow-lg">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4">AIが特許実務に与える影響</h3>
+                    <p class="text-sm text-slate-600">AIは特許実務を効率化する一方、新たな法的課題も提起しています。</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                        <div class="p-4 bg-amber-50 border-l-4 border-amber-400">
+                            <h4 class="font-semibold text-amber-800">効率化：「AI拡張弁護士」</h4>
+                            <p class="text-sm mt-1 text-amber-700">先行技術調査やドラフティングをAIが補助。人間の役割は戦略的なプロンプト設計や出力の検証へとシフトします。</p>
+                        </div>
+                        <div class="p-4 bg-red-50 border-l-4 border-red-400">
+                            <h4 class="font-semibold text-red-800">課題：AI発明の特許性</h4>
+                            <p class="text-sm mt-1 text-red-700">AIが生成した発明の「発明者」は誰か、新規性・非自明性をどう判断するかなど、法整備が追いついていない領域です。</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const navButtons = document.querySelectorAll('.nav-btn');
+    const contentSections = document.querySelectorAll('.content-section');
+    const materialButtons = document.querySelectorAll('.material-btn');
+    const materialDisplay = document.getElementById('material-display');
+    const pharmaTabButtons = document.querySelectorAll('.pharma-tab-btn');
+    const pharmaTabContents = document.querySelectorAll('.pharma-tab-content');
+    const ipOfficeSelector = document.getElementById('ip-office-selector');
+
+    const materialData = {
+        wood: {
+            title: '透明木材',
+            icon: '🌳',
+            description: '木材からリグニンを除去し、ポリマーを充填して作製。ガラスより軽量で丈夫、断熱性も高い。省エネ窓やウェアラブルセンサーへの応用が期待されています。',
+            color: 'teal'
+        },
+        ceramics: {
+            title: '超高温セラミックス (UHTCs)',
+            icon: '🚀',
+            description: 'レーザー焼結法により、従来より遥かに高速・低エネルギーで製造可能に。極超音速機や宇宙船など、極限環境での利用が見込まれます。',
+            color: 'slate'
+        },
+        sensors: {
+            title: 'ウェアラブルポリマーセンサー',
+            icon: '⌚',
+            description: '生分解性やリサイクル性を考慮した材料設計が進展。環境負荷を低減しつつ、健康状態をモニタリングする技術です。',
+            color: 'sky'
+        }
+    };
+
+    const ipChartData = {
+        epo: {
+            labels: ['バッテリー技術', '電気機械/エネルギー', '医薬品'],
+            datasets: [{
+                label: '2024年 出願成長率 (%)',
+                data: [24.0, 8.9, -13.2],
+                backgroundColor: [
+                    'rgba(14, 165, 233, 0.6)',
+                    'rgba(20, 184, 166, 0.6)',
+                    'rgba(244, 63, 94, 0.6)'
+                ],
+                borderColor: [
+                    'rgba(14, 165, 233, 1)',
+                    'rgba(20, 184, 166, 1)',
+                    'rgba(244, 63, 94, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        wipo: {
+            labels: ['抗体治療薬', 'CO2鉱物貯蔵', 'バクテリオファージ療法', '菌類発酵技術'],
+            datasets: [{
+                label: '2025年 WIPOグローバルアワード受賞分野 (注目度)',
+                data: [90, 85, 80, 75],
+                backgroundColor: [
+                    'rgba(139, 92, 246, 0.6)',
+                    'rgba(16, 185, 129, 0.6)',
+                    'rgba(234, 179, 8, 0.6)',
+                    'rgba(99, 102, 241, 0.6)'
+                ],
+                borderColor: [
+                    'rgba(139, 92, 246, 1)',
+                    'rgba(16, 185, 129, 1)',
+                    'rgba(234, 179, 8, 1)',
+                    'rgba(99, 102, 241, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        uspto: {
+            labels: ['AI審査ツール導入', 'AI発明のガイダンス', '先行技術調査の自動化'],
+            datasets: [{
+                label: 'USPTOのAI戦略における注力レベル',
+                data: [95, 60, 85],
+                backgroundColor: [
+                    'rgba(37, 99, 235, 0.6)',
+                    'rgba(217, 119, 6, 0.6)',
+                    'rgba(29, 78, 216, 0.6)'
+                ],
+                borderColor: [
+                    'rgba(37, 99, 235, 1)',
+                    'rgba(217, 119, 6, 1)',
+                    'rgba(29, 78, 216, 1)'
+                ],
+                borderWidth: 1
+            }]
+        }
+    };
+
+    function switchTab(targetId) {
+        contentSections.forEach(section => {
+            section.classList.remove('active');
+        });
+        navButtons.forEach(button => {
+            button.classList.remove('active');
+        });
+
+        document.getElementById(targetId).classList.add('active');
+        document.querySelector(`.nav-btn[data-target="${targetId}"]`).classList.add('active');
+    }
+
+    navButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            switchTab(button.dataset.target);
+        });
+    });
+
+    function updateMaterialDisplay(materialKey) {
+        const data = materialData[materialKey];
+        materialDisplay.innerHTML = `
+            <div class="flex items-start space-x-4">
+                <div class="text-4xl">${data.icon}</div>
+                <div>
+                    <h5 class="font-bold text-${data.color}-700">${data.title}</h5>
+                    <p class="text-sm mt-1 text-slate-600">${data.description}</p>
+                </div>
+            </div>
+        `;
+        materialButtons.forEach(btn => {
+            btn.classList.remove('bg-teal-500');
+            btn.classList.add('bg-slate-500');
+        });
+        document.querySelector(`.material-btn[data-material="${materialKey}"]`).classList.add('bg-teal-500');
+        document.querySelector(`.material-btn[data-material="${materialKey}"]`).classList.remove('bg-slate-500');
+    }
+    
+    materialButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            updateMaterialDisplay(button.dataset.material);
+        });
+    });
+
+    pharmaTabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            pharmaTabButtons.forEach(btn => {
+                btn.classList.remove('active', 'border-b-2', 'border-indigo-500', 'text-indigo-600');
+                btn.classList.add('text-slate-500');
+            });
+            button.classList.add('active', 'border-b-2', 'border-indigo-500', 'text-indigo-600');
+            button.classList.remove('text-slate-500');
+
+            pharmaTabContents.forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${button.dataset.target}-content`).classList.add('active');
+        });
+    });
+
+    const epoCtx = document.getElementById('epoChart').getContext('2d');
+    const epoChart = new Chart(epoCtx, {
+        type: 'bar',
+        data: {
+            labels: ['バッテリー技術', '電気機械/エネルギー', '医薬品'],
+            datasets: [{
+                label: '2024年 EPO出願成長率 (%)',
+                data: [24.0, 8.9, -13.2],
+                backgroundColor: [
+                    'rgba(14, 165, 233, 0.6)',
+                    'rgba(16, 185, 129, 0.6)',
+                    'rgba(244, 63, 94, 0.6)'
+                ],
+                borderColor: [
+                    'rgba(14, 165, 233, 1)',
+                    'rgba(16, 185, 129, 1)',
+                    'rgba(244, 63, 94, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.raw}%`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: '成長率 (%)'
+                    }
+                }
+            }
+        }
+    });
+
+    const ipCtx = document.getElementById('ipChart').getContext('2d');
+    let ipChart = new Chart(ipCtx, {
+        type: 'bar',
+        data: ipChartData.epo,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'EPOの化学関連分野の動向'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    ipOfficeSelector.addEventListener('change', (event) => {
+        const selectedOffice = event.target.value;
+        ipChart.data = ipChartData[selectedOffice];
+        const officeName = event.target.options[event.target.selectedIndex].text;
+        ipChart.options.plugins.title.text = `${officeName}の化学関連分野の動向`;
+        ipChart.update();
+    });
+
+    updateMaterialDisplay('wood');
+});
+</script>
+
+</body>
+</html>
